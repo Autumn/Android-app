@@ -1,27 +1,16 @@
 package io.r.a.dio;
 
 import android.app.Fragment;
-import android.content.ComponentName;
 import android.content.Intent;
-import android.content.ServiceConnection;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.IBinder;
-import android.os.Message;
-import android.os.Messenger;
-import android.os.RemoteException;
-import android.support.v4.view.ViewPager;
 import android.view.LayoutInflater;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
-import android.widget.RadioButton;
 import android.widget.TextView;
 
 import java.io.InputStream;
@@ -38,53 +27,27 @@ public class HomeFragment extends Fragment {
 
     View rootView = null;
 
-    RadioService service;
-    private TextView songName;
-    private TextView artistName;
-    private TextView djName;
+    private TextView songNameView;
+    private TextView artistNameView;
+    private TextView djNameView;
     private ProgressBar songProgressBar;
     private Timer progressBarTimer;
-    private ImageView djImage;
-    private ServiceConnection serviceConnection = new ServiceConnection() {
-        public void onServiceConnected(ComponentName arg0, IBinder binder) {
-            service = ((RadioService.LocalBinder) binder).getService();
-            Message m = Message.obtain();
-            m.what = ApiUtil.ACTIVITYCONNECTED;
-            m.replyTo = mMessenger;
-            try {
-                service.getMessenger().send(m);
-            } catch (RemoteException e) {
-                e.printStackTrace();
-            }
-            service.updateApiData();
-        }
+    private ImageView djImageView;
 
-        public void onServiceDisconnected(ComponentName name) {
-            // Activity disconnected never sent
-            service = null;
-        }
-    };
-    final Messenger mMessenger = new Messenger(new IncomingHandler());
+    public String songName;
+    public String artistName;
+    public String djName;
+    public String djImageUrl;
+    public long songStart;
+    public long songCur;
+    public long songEnd;
 
-    HomePagerAdapter mainPagerAdapter;
-    ViewPager viewPager;
-
-
-    class IncomingHandler extends Handler {
-        @Override
-        public void handleMessage(Message msg) {
-            if (msg.what == ApiUtil.NPUPDATE) {
-                ApiPacket packet = (ApiPacket) msg.obj;
-                HomeFragment.this.updateNP(packet);
-            }
-        }
-    };
 
     // FIX ME
     public void shareTrack() {
         String shareHeading = "Share track title.";
 
-        String shareText = songName.getText() + " - " + artistName.getText();
+        String shareText = songNameView.getText() + " - " + artistNameView.getText();
         Intent i = new Intent(android.content.Intent.ACTION_SEND);
         i.setType("text/plain");
         i.putExtra(Intent.EXTRA_TEXT, shareText);
@@ -95,30 +58,46 @@ public class HomeFragment extends Fragment {
 
     private String lastDjImg = "";
 
-    private void updateNP(ApiPacket packet) {
+    @Override
+    public void onResume() {
+        super.onResume();
+        int progress = (int)(songCur - songStart);
+        songNameView.setText(songName);
+        artistNameView.setText(artistName);
+        djNameView.setText(djName);
+        songProgressBar.setMax((int) (songEnd - songStart));
+        songProgressBar.setProgress(progress);
+        if (!lastDjImg.equals(djImageUrl)) {
+            lastDjImg = djImageUrl;
+            DJImageLoader imageLoader = new DJImageLoader();
+            imageLoader.execute(djImageUrl);
+        }
+    }
+
+    public void updateNP(ApiPacket packet) {
         int progress = (int)(packet.cur - packet.start);
-        songName.setText(packet.songName);
-        artistName.setText(packet.artistName);
-        djName.setText(packet.dj);
-        songProgressBar.setMax((int)(packet.end - packet.start));
+        View v = getView();
+        songNameView.setText(packet.songName);
+        artistNameView.setText(packet.artistName);
+        djNameView.setText(packet.dj);
+        songProgressBar.setMax((int) (packet.end - packet.start));
         songProgressBar.setProgress(progress);
         if (!lastDjImg.equals(packet.djimg)) {
             lastDjImg = packet.djimg;
             DJImageLoader imageLoader = new DJImageLoader();
-            imageLoader.execute(packet);
-
+            imageLoader.execute(djImageUrl);
         }
     }
 
-    private class DJImageLoader extends AsyncTask<ApiPacket, Void, Void> {
+    private class DJImageLoader extends AsyncTask<String, Void, Void> {
         private Bitmap image;
 
         @Override
-        protected Void doInBackground(ApiPacket... params) {
-            ApiPacket pack = params[0];
+        protected Void doInBackground(String... params) {
+            String imageUrl = params[0];
             URL url;
             try {
-                url = new URL("http://r-a-d.io" + pack.djimg);
+                url = new URL("http://r-a-d.io" + imageUrl);
                 HttpURLConnection conn = (HttpURLConnection) url
                         .openConnection();
                 conn.setDoInput(true);
@@ -135,11 +114,11 @@ public class HomeFragment extends Fragment {
         @Override
         protected void onPostExecute(Void result) {
             if (image != null) {
-                djImage.setImageBitmap(image);
-                service.updateNotificationImage(image);
+                djImageView.setImageBitmap(image);
+                MainActivity activity = (MainActivity) getActivity();
+                activity.service.updateNotificationImage(image);
             }
         }
-
     }
 
     @Override
@@ -153,14 +132,11 @@ public class HomeFragment extends Fragment {
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-        songName = (TextView) getView().findViewById(R.id.main_SongName);
-        artistName = (TextView) getView().findViewById(R.id.main_ArtistName);
-        djName = (TextView) getView().findViewById(R.id.main_DjName);
-        djImage = (ImageView) getView().findViewById(R.id.main_DjImage);
+        songNameView = (TextView) this.getView().findViewById(R.id.main_SongName);
+        artistNameView = (TextView) getView().findViewById(R.id.main_ArtistName);
+        djNameView = (TextView) getView().findViewById(R.id.main_DjName);
+        djImageView = (ImageView) getView().findViewById(R.id.main_DjImage);
         songProgressBar = (ProgressBar) getView().findViewById(R.id.main_SongProgress);
-        Intent servIntent = new Intent(getActivity(), RadioService.class);
-        //bindService(servIntent, serviceConnection, Context.BIND_AUTO_CREATE);
-        getActivity().startService(servIntent);
         progressBarTimer = new Timer();
         progressBarTimer.scheduleAtFixedRate(new TimerTask() {
             @Override

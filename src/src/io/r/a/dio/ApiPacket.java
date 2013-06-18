@@ -2,6 +2,8 @@ package io.r.a.dio;
 
 import android.graphics.Bitmap;
 
+import java.util.HashMap;
+
 public class ApiPacket {
 	public boolean online;
 	public String np;
@@ -18,6 +20,9 @@ public class ApiPacket {
 	public String songName;
 	public String artistName;
 
+    public Tracks[] queue;
+    public Tracks[] lastPlayed;
+
 	public ApiPacket() {
 		online = false;
 		np = "unknown";
@@ -32,6 +37,8 @@ public class ApiPacket {
 		thread = 0;
 		songName = "";
 		artistName = "";
+        queue = null;
+        lastPlayed = null;
 	}
 
 }

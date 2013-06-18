@@ -20,6 +20,7 @@ import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.ImageView;
@@ -34,10 +35,64 @@ public class MainActivity extends Activity {
     HomePagerAdapter mainPagerAdapter;
     ViewPager viewPager;
 
+    public RadioService service;
+
+    private ServiceConnection serviceConnection = new ServiceConnection() {
+        public void onServiceConnected(ComponentName arg0, IBinder binder) {
+            service = ((RadioService.LocalBinder) binder).getService();
+            Message m = Message.obtain();
+            m.what = ApiUtil.ACTIVITYCONNECTED;
+            m.replyTo = mMessenger;
+            try {
+                service.getMessenger().send(m);
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+            service.updateApiData();
+        }
+
+        public void onServiceDisconnected(ComponentName name) {
+            // Activity disconnected never sent
+            service = null;
+        }
+    };
+    final Messenger mMessenger = new Messenger(new IncomingHandler());
+
+    class IncomingHandler extends Handler {
+        @Override
+        public void handleMessage(Message msg) {
+            if (msg.what == ApiUtil.NPUPDATE) {
+                ApiPacket packet = (ApiPacket) msg.obj;
+                MainActivity.this.update(packet);
+                /*LastPlayedFragment.updateLastPlayed(packet);
+                QueueFragment.updateQueue(packet);*/
+            }
+        }
+    };
+
+    private void update(ApiPacket packet) {
+        HomeFragment homeFragment = (HomeFragment) mainPagerAdapter.getItem(1);
+        QueueFragment queueFragment = (QueueFragment) mainPagerAdapter.getItem(2);
+        LastPlayedFragment lastPlayedFragment = (LastPlayedFragment) mainPagerAdapter.getItem(0);
+        //homeFragment.updateNP(packet);
+        homeFragment.songName = packet.songName;
+        homeFragment.artistName = packet.artistName;
+        homeFragment.djName = packet.dj;
+        homeFragment.songStart = packet.start;
+        homeFragment.songCur = packet.cur;
+        homeFragment.songEnd = packet.end;
+        homeFragment.djImageUrl = packet.djimg;
+    }
+
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.home_fragment);
+        Intent servIntent = new Intent(this, RadioService.class);
+
+        bindService(servIntent, serviceConnection, Context.BIND_AUTO_CREATE);
+
         mainPagerAdapter = new HomePagerAdapter(getFragmentManager());
         viewPager = (ViewPager) findViewById(R.id.home_pager);
         viewPager.setAdapter(mainPagerAdapter);

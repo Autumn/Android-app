@@ -22,4 +22,8 @@ public class LastPlayedFragment extends Fragment {
         this.rootView = rootView;
         return rootView;
     }
+
+    private void updateLastPlayed(ApiPacket packet) {
+    }
+
 }

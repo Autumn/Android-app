@@ -22,4 +22,9 @@ public class QueueFragment extends Fragment {
         this.rootView = rootView;
         return rootView;
     }
+
+    public void updateQueue(ApiPacket packet) {
+
+    }
+
 }
