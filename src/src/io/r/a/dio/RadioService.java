@@ -19,6 +19,7 @@ import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
+import android.util.Log;
 
 public class RadioService extends Service implements OnPreparedListener {
 	private final IBinder binder = new LocalBinder();
@@ -102,7 +103,7 @@ public class RadioService extends Service implements OnPreparedListener {
 
 		@Override
 		protected Void doInBackground(Void... params) {
-			resultPacket = new ApiPacket();
+            resultPacket = new ApiPacket();
 			try {
 				URL apiURl = new URL("http://r-a-d.io/api.php");
 				BufferedReader in = new BufferedReader(new InputStreamReader(
@@ -113,6 +114,7 @@ public class RadioService extends Service implements OnPreparedListener {
 				String[] songParts = resultPacket.np.split(" - ");
 				resultPacket.songName = songParts[1];
 				resultPacket.artistName = songParts[0];
+
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
